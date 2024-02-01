@@ -1,0 +1,37 @@
+SELECT us_cong_district_latest
+, county_fips
+--, CASE WHEN county_fips = '520' THEN '095' ELSE county_fips END as county_fips
+, county_name
+--, CASE WHEN county_name = 'Kansas City' THEN 'Jackson' ELSE county_name END as county_name
+, CASE
+  WHEN county_fips IN('510', '520') THEN precinct_ward
+  ELSE NULL END as ward
+, CASE
+  WHEN county_fips = '189' THEN regexp_extract(van_precinct_name, r'^[^.]*')
+  WHEN county_fips = '095' AND regexp_extract(van_precinct_name, r'^[^-]*') IN(
+     'Prairie'
+    , 'Brooking'
+    , 'Washington'
+    ) THEN regexp_extract(van_precinct_name, r'^[^-]*')
+  WHEN county_fips = '095' AND LEFT(van_precinct_name, 3) IN('Van', 'Sni') THEN LEFT(van_precinct_name, 9)
+  WHEN county_fips = '095' AND LEFT(van_precinct_name, 4) = 'Fort' THEN LEFT(van_precinct_name, 10)
+  WHEN county_fips = '095' AND LEFT(van_precinct_name, 4) = 'Blue' THEN LEFT(van_precinct_name, 4)
+  ELSE NULL END as township
+--NB: The code above (to handle a few different conventions for spacing/formatting of township names) could probably be more generalizable. I welcome updates in this vein.
+, CASE
+  WHEN county_fips = '095' AND regexp_extract(van_precinct_name, r'^[^ ]*') = 'Blue' THEN LEFT(RIGHT(van_precinct_name, 4), 1)
+  ELSE NULL END as township_subdistrict
+--, CASE
+--  WHEN county_fips = '520' THEN precinct_ward
+--  WHEN county_fips = '189' THEN LEFT(van_precinct_name, 3)
+--  WHEN county_fips = '189' THEN regexp_extract(van_precinct_name, r'^[^.]*')
+--  ELSE NULL END as county_subdivision
+, COUNT(*) as registered_voter_count
+FROM `democrats.analytics_mo.person`
+WHERE reg_on_current_file = TRUE
+AND us_cong_district_latest IS NOT NULL
+AND county_fips IS NOT NULL
+AND county_name IS NOT NULL
+AND van_precinct_name IS NOT NULL
+GROUP BY us_cong_district_latest, county_fips, county_name, ward, township, township_subdistrict
+ORDER BY us_cong_district_latest ASC, county_fips ASC, county_name ASC, ward ASC, township ASC, township_subdistrict ASC
